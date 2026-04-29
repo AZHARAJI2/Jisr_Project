@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Crisis Bridge — All-in-One Transaction Hub</title>
+    <meta name="description" content="Crisis Bridge: A futuristic fintech mobile application for seamless digital transactions, mesh network payments, and real-time balance management.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="app-container" id="appContainer">
+
+            <!-- ===== HEADER ===== -->
+            <header class="app-header" id="appHeader">
+                <div class="header-top">
+                    <div class="brand">
+                        <div class="brand-icon">
+                            <svg viewBox="0 0 32 32" width="28" height="28">
+                                <path d="M4 22 L10 12 L16 18 L22 8 L28 16" stroke="#00f2ff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 26 L10 16 L16 22 L22 12 L28 20" stroke="#00ff88" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                                <circle cx="10" cy="12" r="2" fill="#00f2ff"/>
+                                <circle cx="22" cy="8" r="2" fill="#00f2ff"/>
+                                <circle cx="16" cy="18" r="2" fill="#00ff88"/>
+                            </svg>
+                        </div>
+                        <span class="brand-text">Crisis Bridge</span>
+                    </div>
+                    <div class="header-right">
+                        <div class="notification-bell" id="notificationBell">
+                            <i class="fa-regular fa-bell"></i>
+                            <span class="notification-dot"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Profile Bar -->
+                <div class="user-profile-bar">
+                    <div class="user-avatar">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300f2ff'/%3E%3Cstop offset='100%25' stop-color='%2300ff88'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='20' cy='20' r='20' fill='url(%23g)'/%3E%3Ccircle cx='20' cy='15' r='6' fill='%23fff' opacity='0.9'/%3E%3Cellipse cx='20' cy='30' rx='10' ry='7' fill='%23fff' opacity='0.9'/%3E%3C/svg%3E" alt="User Avatar">
+                    </div>
+                    <div class="user-info">
+                        <span class="user-title">All-in-One Transaction Hub</span>
+                        <div class="user-meta">
+                            <span class="user-name">User: Alex R.</span>
+                            <span class="user-separator">•</span>
+                            <span class="user-status">Status: <em>Online</em></span>
+                            <span class="status-dot-pulse"></span>
+                        </div>
+                    </div>
+                    <div class="latency-badge">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>14ms</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- ===== SCROLLABLE CONTENT ===== -->
+            <main class="app-content" id="appContent">
+
+                <!-- Balance Card -->
+                <section class="balance-card" id="balanceCard">
+                    <span class="balance-label">Main digital balance</span>
+                    <div class="balance-amount">
+                        <span class="currency-symbol">$</span>
+                        <span class="currency-value">84,210.65</span>
+                        <span class="currency-code">USD</span>
+                    </div>
+                    <div class="balance-growth">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                        <span>+12.4% (24h)</span>
+                    </div>
+                </section>
+
+                <!-- Action Hub -->
+                <section class="action-hub" id="actionHub">
+                    <div class="action-buttons">
+                        <button class="action-btn" id="btnSend">
+                            <div class="action-icon">
+                                <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                            </div>
+                            <span>Send</span>
+                        </button>
+                        <button class="action-btn" id="btnReceive">
+                            <div class="action-icon">
+                                <i class="fa-solid fa-arrow-down-to-bracket"></i>
+                            </div>
+                            <span>Receive</span>
+                        </button>
+                        <button class="action-btn" id="btnRequest">
+                            <div class="action-icon">
+                                <i class="fa-solid fa-hand-holding-dollar"></i>
+                            </div>
+                            <span>Request</span>
+                        </button>
+                        <button class="action-btn" id="btnMore">
+                            <div class="action-icon">
+                                <i class="fa-solid fa-ellipsis"></i>
+                            </div>
+                            <span>More</span>
+                        </button>
+                    </div>
+                    <button class="fab-button" id="fabButton">
+                        <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                    </button>
+                </section>
+
+                <!-- Mesh Network Map -->
+                <section class="mesh-network" id="meshNetwork">
+                    <h2 class="section-title">MESH NETWORK MAP</h2>
+                    <div class="map-container">
+                        <svg class="world-map-svg" viewBox="0 0 360 200" preserveAspectRatio="xMidYMid meet">
+                            <defs>
+                                <linearGradient id="lineGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#00f2ff" stop-opacity="0.8"/>
+                                    <stop offset="50%" stop-color="#00ff88" stop-opacity="1"/>
+                                    <stop offset="100%" stop-color="#bf00ff" stop-opacity="0.8"/>
+                                </linearGradient>
+                                <linearGradient id="lineGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#00ff88" stop-opacity="0.6"/>
+                                    <stop offset="100%" stop-color="#00f2ff" stop-opacity="0.9"/>
+                                </linearGradient>
+                                <linearGradient id="lineGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#bf00ff" stop-opacity="0.7"/>
+                                    <stop offset="100%" stop-color="#00f2ff" stop-opacity="0.9"/>
+                                </linearGradient>
+                                <filter id="glowFilter">
+                                    <feGaussianBlur stdDeviation="2" result="blur"/>
+                                    <feMerge>
+                                        <feMergeNode in="blur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                                <filter id="pulseGlow">
+                                    <feGaussianBlur stdDeviation="3" result="blur"/>
+                                    <feMerge>
+                                        <feMergeNode in="blur"/>
+                                        <feMergeNode in="blur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                                <!-- World map outline (simplified) -->
+                                <pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+                                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,242,255,0.03)" stroke-width="0.5"/>
+                                </pattern>
+                            </defs>
+
+                            <!-- Grid background -->
+                            <rect width="360" height="200" fill="url(#gridPattern)"/>
+
+                            <!-- Simplified world map continents -->
+                            <g class="continents" opacity="0.12">
+                                <!-- North America -->
+                                <path d="M60,30 Q70,25 85,30 L95,35 Q100,45 95,55 L90,65 Q85,75 75,80 L65,78 Q55,70 50,60 L48,50 Q50,35 60,30Z" fill="#00f2ff"/>
+                                <!-- South America -->
+                                <path d="M85,95 Q90,85 95,90 L100,100 Q105,115 100,130 L95,140 Q88,150 82,145 L78,130 Q75,115 80,100Z" fill="#00f2ff"/>
+                                <!-- Europe -->
+                                <path d="M155,25 Q165,20 175,25 L180,35 Q178,45 172,48 L160,50 Q152,45 150,35Z" fill="#00f2ff"/>
+                                <!-- Africa -->
+                                <path d="M160,60 Q170,55 180,60 L185,75 Q188,90 185,105 L180,120 Q172,130 165,125 L158,110 Q152,90 155,75Z" fill="#00f2ff"/>
+                                <!-- Asia -->
+                                <path d="M195,20 Q215,15 240,20 L260,25 Q280,30 290,40 L295,50 Q290,65 280,70 L260,72 Q240,68 225,60 L210,55 Q195,45 192,35Z" fill="#00f2ff"/>
+                                <!-- Australia -->
+                                <path d="M270,110 Q280,105 295,108 L305,115 Q310,125 305,132 L295,135 Q280,132 272,125Z" fill="#00f2ff"/>
+                            </g>
+
+                            <!-- Connection lines with animated pulses -->
+                            <!-- London to NY -->
+                            <path class="connection-line" d="M162,38 Q120,25 82,55" stroke="url(#lineGrad2)" stroke-width="1.5" fill="none" filter="url(#glowFilter)"/>
+                            <circle class="pulse-dot" r="2.5" fill="#00f2ff" filter="url(#pulseGlow)">
+                                <animateMotion dur="3s" repeatCount="indefinite" path="M162,38 Q120,25 82,55"/>
+                            </circle>
+
+                            <!-- London to Lagos -->
+                            <path class="connection-line" d="M162,38 Q165,65 168,95" stroke="url(#lineGrad1)" stroke-width="1.5" fill="none" filter="url(#glowFilter)"/>
+                            <circle class="pulse-dot" r="2" fill="#00ff88" filter="url(#pulseGlow)">
+                                <animateMotion dur="2.5s" repeatCount="indefinite" path="M162,38 Q165,65 168,95"/>
+                            </circle>
+
+                            <!-- NY to Lagos -->
+                            <path class="connection-line" d="M82,55 Q120,85 168,95" stroke="url(#lineGrad3)" stroke-width="1.2" fill="none" filter="url(#glowFilter)"/>
+                            <circle class="pulse-dot" r="2" fill="#bf00ff" filter="url(#pulseGlow)">
+                                <animateMotion dur="4s" repeatCount="indefinite" path="M82,55 Q120,85 168,95"/>
+                            </circle>
+
+                            <!-- London to Tokyo -->
+                            <path class="connection-line" d="M162,38 Q220,20 278,42" stroke="url(#lineGrad2)" stroke-width="1.5" fill="none" filter="url(#glowFilter)"/>
+                            <circle class="pulse-dot" r="2.5" fill="#00f2ff" filter="url(#pulseGlow)">
+                                <animateMotion dur="3.5s" repeatCount="indefinite" path="M162,38 Q220,20 278,42"/>
+                            </circle>
+
+                            <!-- Tokyo to Seoul -->
+                            <path class="connection-line" d="M278,42 Q268,48 260,55" stroke="url(#lineGrad1)" stroke-width="1.5" fill="none" filter="url(#glowFilter)"/>
+                            <circle class="pulse-dot" r="2" fill="#00ff88" filter="url(#pulseGlow)">
+                                <animateMotion dur="1.8s" repeatCount="indefinite" path="M278,42 Q268,48 260,55"/>
+                            </circle>
+
+                            <!-- Seoul to Lagos -->
+                            <path class="connection-line" d="M260,55 Q220,80 168,95" stroke="url(#lineGrad3)" stroke-width="1.2" fill="none" filter="url(#glowFilter)"/>
+                            <circle class="pulse-dot" r="2" fill="#bf00ff" filter="url(#pulseGlow)">
+                                <animateMotion dur="4.5s" repeatCount="indefinite" path="M260,55 Q220,80 168,95"/>
+                            </circle>
+
+                            <!-- NY to Seoul -->
+                            <path class="connection-line" d="M82,55 Q170,15 260,55" stroke="url(#lineGrad2)" stroke-width="1" fill="none" filter="url(#glowFilter)" opacity="0.5"/>
+
+                            <!-- Network Nodes -->
+                            <!-- London -->
+                            <g class="network-node" data-city="London">
+                                <circle class="node-pulse-ring" cx="162" cy="38" r="8" fill="none" stroke="#00f2ff" stroke-width="1" opacity="0.3"/>
+                                <circle class="node-outer" cx="162" cy="38" r="5" fill="rgba(0,242,255,0.15)" stroke="#00f2ff" stroke-width="1.5"/>
+                                <circle class="node-inner" cx="162" cy="38" r="2.5" fill="#00f2ff"/>
+                                <text x="162" y="30" text-anchor="middle" fill="#ccc" font-size="9" font-family="Inter">London</text>
+                            </g>
+
+                            <!-- NY -->
+                            <g class="network-node" data-city="NY">
+                                <circle class="node-pulse-ring" cx="82" cy="55" r="8" fill="none" stroke="#00ff88" stroke-width="1" opacity="0.3"/>
+                                <circle class="node-outer" cx="82" cy="55" r="5" fill="rgba(0,255,136,0.15)" stroke="#00ff88" stroke-width="1.5"/>
+                                <circle class="node-inner" cx="82" cy="55" r="2.5" fill="#00ff88"/>
+                                <text x="82" y="70" text-anchor="middle" fill="#ccc" font-size="9" font-family="Inter">NY</text>
+                            </g>
+
+                            <!-- Lagos -->
+                            <g class="network-node" data-city="Lagos">
+                                <circle class="node-pulse-ring" cx="168" cy="95" r="8" fill="none" stroke="#bf00ff" stroke-width="1" opacity="0.3"/>
+                                <circle class="node-outer" cx="168" cy="95" r="5" fill="rgba(191,0,255,0.15)" stroke="#bf00ff" stroke-width="1.5"/>
+                                <circle class="node-inner" cx="168" cy="95" r="2.5" fill="#bf00ff"/>
+                                <text x="185" y="92" text-anchor="start" fill="#ccc" font-size="9" font-family="Inter">Lagos</text>
+                            </g>
+
+                            <!-- Tokyo -->
+                            <g class="network-node" data-city="Tokyo">
+                                <circle class="node-pulse-ring" cx="278" cy="42" r="8" fill="none" stroke="#00f2ff" stroke-width="1" opacity="0.3"/>
+                                <circle class="node-outer" cx="278" cy="42" r="5" fill="rgba(0,242,255,0.15)" stroke="#00f2ff" stroke-width="1.5"/>
+                                <circle class="node-inner" cx="278" cy="42" r="2.5" fill="#00f2ff"/>
+                                <text x="278" y="32" text-anchor="middle" fill="#ccc" font-size="9" font-family="Inter">Tokyo</text>
+                            </g>
+
+                            <!-- Seoul -->
+                            <g class="network-node" data-city="Seoul">
+                                <circle class="node-pulse-ring" cx="260" cy="55" r="8" fill="none" stroke="#00ff88" stroke-width="1" opacity="0.3"/>
+                                <circle class="node-outer" cx="260" cy="55" r="5" fill="rgba(0,255,136,0.15)" stroke="#00ff88" stroke-width="1.5"/>
+                                <circle class="node-inner" cx="260" cy="55" r="2.5" fill="#00ff88"/>
+                                <text x="275" y="60" text-anchor="start" fill="#ccc" font-size="9" font-family="Inter">Seoul</text>
+                            </g>
+
+                            <!-- Signal wave indicators -->
+                            <g class="signal-waves" transform="translate(310, 55)">
+                                <path d="M0,0 Q3,-5 6,0" stroke="#00f2ff" stroke-width="1" fill="none" opacity="0.6">
+                                    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="2s" repeatCount="indefinite"/>
+                                </path>
+                                <path d="M-2,0 Q3,-8 8,0" stroke="#00f2ff" stroke-width="0.8" fill="none" opacity="0.4">
+                                    <animate attributeName="opacity" values="0.1;0.6;0.1" dur="2s" repeatCount="indefinite" begin="0.3s"/>
+                                </path>
+                                <path d="M-4,0 Q3,-11 10,0" stroke="#00f2ff" stroke-width="0.6" fill="none" opacity="0.3">
+                                    <animate attributeName="opacity" values="0.05;0.4;0.05" dur="2s" repeatCount="indefinite" begin="0.6s"/>
+                                </path>
+                            </g>
+                        </svg>
+
+                        <!-- Map pagination dots -->
+                        <div class="map-dots">
+                            <span class="dot active"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recent Activity -->
+                <section class="recent-activity" id="recentActivity">
+                    <h2 class="section-title">RECENT ACTIVITY</h2>
+                    <div class="activity-list">
+                        <!-- Transaction 1 -->
+                        <div class="activity-item" id="tx1">
+                            <div class="activity-icon incoming">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </div>
+                            <div class="activity-details">
+                                <div class="activity-top-row">
+                                    <span class="activity-type">Incoming:</span>
+                                    <span class="activity-amount positive">+$340.50</span>
+                                    <span class="activity-sender">(J. Chen)</span>
+                                </div>
+                                <div class="activity-bottom-row">
+                                    <span class="activity-network">Network: <em>Server Nodes</em></span>
+                                    <span class="activity-time">- 3m ago</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transaction 2 -->
+                        <div class="activity-item" id="tx2">
+                            <div class="activity-icon outgoing">
+                                <i class="fa-solid fa-arrow-up"></i>
+                            </div>
+                            <div class="activity-details">
+                                <div class="activity-top-row">
+                                    <span class="activity-type">Outgoing:</span>
+                                    <span class="activity-amount negative">-$1,120.00</span>
+                                    <span class="activity-sender">(Server Nodes)</span>
+                                </div>
+                                <div class="activity-bottom-row">
+                                    <span class="activity-network">Network: <em>Server Nodes</em></span>
+                                    <span class="activity-time">- 12m ago</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transaction 3 -->
+                        <div class="activity-item" id="tx3">
+                            <div class="activity-icon incoming">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </div>
+                            <div class="activity-details">
+                                <div class="activity-top-row">
+                                    <span class="activity-type">Incoming:</span>
+                                    <span class="activity-amount positive">+$5,000.00</span>
+                                    <span class="activity-sender">(W. Smith)</span>
+                                </div>
+                                <div class="activity-bottom-row">
+                                    <span class="activity-network">Network: <em>Server Nodes</em></span>
+                                    <span class="activity-time">- 45m ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Bottom spacer for nav -->
+                <div class="bottom-spacer"></div>
+            </main>
+
+            <!-- ===== BOTTOM NAVIGATION ===== -->
+            <nav class="bottom-nav" id="bottomNav">
+                <button class="nav-item active" id="navHome" data-tab="home">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Home</span>
+                </button>
+                <button class="nav-item" id="navNetwork" data-tab="network">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    <span>Network</span>
+                </button>
+                <button class="nav-item" id="navWallet" data-tab="wallet">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span>Wallet</span>
+                </button>
+                <button class="nav-item" id="navHistory" data-tab="history">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History</span>
+                </button>
+                <button class="nav-item" id="navSettings" data-tab="settings">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Settings</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

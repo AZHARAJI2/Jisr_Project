@@ -1,0 +1,24 @@
+# Web files
+.DS_Store
+Thumbs.db
+
+# Flutter related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+ios/.generated/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Flutter.podspec
+android/local.properties
+android/key.properties
+android/app/src/main/res/values/strings.xml
+android/app/src/main/res/values/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Logs
+*.log
