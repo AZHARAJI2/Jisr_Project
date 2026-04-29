@@ -112,11 +112,8 @@ class NearbyMeshService {
             }
             break;
         }
-
-        return codec.encodeSuccessEnvelope(null);
-      },
-    );
-    _log('🔧 MESH handler مُسجّل (BinaryMessenger)');
+    });
+    _log('🔧 JISR handler مُسجّل ✅');
   }
 
   // ──────────────────────────────────────────
