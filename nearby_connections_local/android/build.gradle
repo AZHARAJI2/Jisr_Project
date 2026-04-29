@@ -1,0 +1,41 @@
+group 'com.pkmnapps.nearby_connections'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    repositories {
+        google()
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:4.1.2'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        jcenter()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 33
+
+    defaultConfig {
+        minSdkVersion 16
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    lintOptions {
+        disable 'InvalidPackage'
+    }
+    dependencies{
+        api 'com.google.android.gms:play-services-nearby:18.4.0'
+    }
+}
+
+dependencies {
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+}
