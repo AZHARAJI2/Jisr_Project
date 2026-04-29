@@ -24,6 +24,7 @@ class MeshManager {
   /// معرف المستخدم
   String _myUserId = '';
   String get myUserId => _myUserId;
+  String get userId => _myUserId;
 
   /// معرف الجهاز (UUID فريد لهذا الجهاز)
   String _myDeviceId = '';
