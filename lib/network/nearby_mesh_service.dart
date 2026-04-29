@@ -13,6 +13,7 @@ import '../data/local_db.dart';
 class NearbyMeshService {
   static const String _serviceId = 'com.crisisbridge.crisis_bridge';
   static const MethodChannel _ch = MethodChannel('nearby_connections');
+  static const MethodChannel _events = MethodChannel('jisr_events');
 
   String _userName = 'JISR';
 
@@ -42,17 +43,9 @@ class NearbyMeshService {
   // ──────────────────────────────────────────
 
   void _setupHandler() {
-    // استخدم BinaryMessenger مباشرة — أدنى مستوى
-    // لا أحد يقدر يتجاوزه
-    const codec = StandardMethodCodec();
-    ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(
-      'nearby_connections',
-      (ByteData? message) async {
-        if (message == null) return null;
-        final call = codec.decodeMethodCall(message);
-        final args = call.arguments as Map<dynamic, dynamic>;
-
-        _log('📨 MESH: ${call.method}');
+    _events.setMethodCallHandler((MethodCall call) async {
+      final args = call.arguments as Map<dynamic, dynamic>;
+      _log('📨 JISR: ${call.method}');
 
         switch (call.method) {
           case 'dis.onEndpointFound':
