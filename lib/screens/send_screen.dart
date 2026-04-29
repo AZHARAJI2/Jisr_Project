@@ -78,12 +78,6 @@ class _SendScreenState extends State<SendScreen> {
                       _buildLabel('المبلغ:'),
                       _buildInput('المبلغ بالريال', Icons.attach_money, keyboardType: TextInputType.number, controller: _amountController),
                       const SizedBox(height: 30),
-                      
-                      _buildLabel('طريقة الإرسال:'),
-                      _buildModeItem('WiFi Direct (نشط)', AppTheme.primaryBlue),
-                      _buildModeItem('Bluetooth (احتياطي)', AppTheme.accentPurple),
-                      
-                      const SizedBox(height: 30),
                       _buildOptimalPath(),
                       
                       const SizedBox(height: 40),

@@ -57,6 +57,7 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
     private static MethodChannel channel;
     private static MethodChannel jisrChannel; // قناة أحداث مخصصة
     private static LocationHelper locationHelper;
+    private String savedUserNickName = "JISR"; // حفظ الاسم للاتصال التلقائي
     private static ActivityPluginBinding activityPluginBinding;
     private static PluginRegistry.Registrar pluginRegistrar;
 
@@ -204,6 +205,7 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
                 AdvertisingOptions advertisingOptions = new AdvertisingOptions.Builder()
                         .setStrategy(getStrategy(strategy)).build();
 
+                savedUserNickName = userNickName; // حفظ الاسم
                 Nearby.getConnectionsClient(activity).startAdvertising(userNickName, serviceId,
                         advertConnectionLifecycleCallback, advertisingOptions)
                         .addOnSuccessListener(new OnSuccessListener<Void>() {
@@ -366,7 +368,9 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
     private final ConnectionLifecycleCallback advertConnectionLifecycleCallback = new ConnectionLifecycleCallback() {
         @Override
         public void onConnectionInitiated(@NonNull String endpointId, @NonNull ConnectionInfo connectionInfo) {
-            Log.d("nearby_connections", "ad.onConnectionInitiated");
+            Log.d("nearby_connections", "ad.onConnectionInitiated -> AUTO ACCEPT");
+            // ✅ قبول تلقائي
+            Nearby.getConnectionsClient(activity).acceptConnection(endpointId, payloadCallback);
             final Map<String, Object> args = new HashMap<>();
             args.put("endpointId", endpointId);
             args.put("endpointName", connectionInfo.getEndpointName());
@@ -403,7 +407,9 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
     private final ConnectionLifecycleCallback discoverConnectionLifecycleCallback = new ConnectionLifecycleCallback() {
         @Override
         public void onConnectionInitiated(@NonNull String endpointId, @NonNull ConnectionInfo connectionInfo) {
-            Log.d("nearby_connections", "dis.onConnectionInitiated");
+            Log.d("nearby_connections", "dis.onConnectionInitiated -> AUTO ACCEPT");
+            // ✅ قبول تلقائي
+            Nearby.getConnectionsClient(activity).acceptConnection(endpointId, payloadCallback);
             final Map<String, Object> args = new HashMap<>();
             args.put("endpointId", endpointId);
             args.put("endpointName", connectionInfo.getEndpointName());
@@ -471,6 +477,14 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
         public void onEndpointFound(@NonNull String endpointId,
                                     @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
             Log.d("nearby_connections", "onEndpointFound -> " + endpointId + " " + discoveredEndpointInfo.getEndpointName());
+            
+            // ✅ اتصال تلقائي فوري!
+            Log.d("nearby_connections", "AUTO requestConnection -> " + endpointId);
+            Nearby.getConnectionsClient(activity)
+                .requestConnection(savedUserNickName, endpointId, discoverConnectionLifecycleCallback)
+                .addOnSuccessListener(aVoid -> Log.d("nearby_connections", "requestConnection SUCCESS -> " + endpointId))
+                .addOnFailureListener(e -> Log.w("nearby_connections", "requestConnection FAIL -> " + e.getMessage()));
+
             final Map<String, Object> args = new HashMap<>();
             args.put("endpointId", endpointId);
             args.put("endpointName", discoveredEndpointInfo.getEndpointName());
