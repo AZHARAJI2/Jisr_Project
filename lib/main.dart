@@ -17,6 +17,7 @@ import 'providers/user_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LocalDB.initialize();
+  await NotificationService.instance.initialize();
   runApp(
     ChangeNotifierProvider(
       create: (_) => UserProvider(),

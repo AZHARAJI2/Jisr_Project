@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'package:cryptography/cryptography.dart';
 
 /// ════════════════════════════════════════════════
 /// TransactionPacket — حزمة الحوالة
@@ -7,7 +7,7 @@ import 'package:crypto/crypto.dart';
 /// تمثل حوالة واحدة تنتقل عبر شبكة الـ mesh.
 /// تحتوي على:
 ///   - معلومات الحوالة (المرسل، المستقبل، المبلغ)
-///   - توقيع رقمي SHA-256
+///   - توقيع رقمي Ed25519
 ///   - ttl — عدد القفزات المتبقية
 ///   - path — سجل الأجهزة اللي عبرت منها
 /// ════════════════════════════════════════════════
@@ -18,6 +18,7 @@ class TransactionPacket {
   final double amount;
   final int timestamp;
   final String signature;
+  final String signerPublicKey;
   int ttl;
   List<String> path;
 
@@ -28,34 +29,59 @@ class TransactionPacket {
     required this.amount,
     required this.timestamp,
     required this.signature,
+    required this.signerPublicKey,
     this.ttl = 10,
     List<String>? path,
   }) : path = path ?? [];
 
   // ──────────────────────────────────────────
-  //  التوقيع الرقمي — SHA-256
+  //  التوقيع الرقمي — Ed25519
   // ──────────────────────────────────────────
 
-  /// إنشاء توقيع SHA-256 على (id + amount + receiverId)
-  static String generateSignature({
-    required String id,
-    required double amount,
-    required String receiverId,
-  }) {
-    final data = '$id$amount$receiverId';
-    final bytes = utf8.encode(data);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
+  String signingPayload() {
+    return jsonEncode(<String, dynamic>{
+      'id': id,
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'amount': amount,
+      'timestamp': timestamp,
+    });
   }
 
-  /// التحقق من صحة التوقيع
-  bool verifySignature() {
-    final expected = generateSignature(
+  /// التحقق من صحة التوقيع باستخدام المفتاح العام المرفق.
+  Future<bool> verifySignature() async {
+    try {
+      final algo = Ed25519();
+      final sig = Signature(
+        base64Decode(signature),
+        publicKey: SimplePublicKey(
+          base64Decode(signerPublicKey),
+          type: KeyPairType.ed25519,
+        ),
+      );
+      return algo.verify(utf8.encode(signingPayload()), signature: sig);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  TransactionPacket copyWith({
+    String? signature,
+    String? signerPublicKey,
+    int? ttl,
+    List<String>? path,
+  }) {
+    return TransactionPacket(
       id: id,
-      amount: amount,
+      senderId: senderId,
       receiverId: receiverId,
+      amount: amount,
+      timestamp: timestamp,
+      signature: signature ?? this.signature,
+      signerPublicKey: signerPublicKey ?? this.signerPublicKey,
+      ttl: ttl ?? this.ttl,
+      path: path ?? List<String>.from(this.path),
     );
-    return signature == expected;
   }
 
   // ──────────────────────────────────────────
@@ -69,6 +95,7 @@ class TransactionPacket {
         'amount': amount,
         'timestamp': timestamp,
         'signature': signature,
+        'signerPublicKey': signerPublicKey,
         'ttl': ttl,
         'path': path,
       };
@@ -81,6 +108,7 @@ class TransactionPacket {
       amount: (json['amount'] as num).toDouble(),
       timestamp: json['timestamp'] as int,
       signature: json['signature'] as String,
+      signerPublicKey: (json['signerPublicKey'] as String?) ?? '',
       ttl: json['ttl'] as int? ?? 10,
       path: (json['path'] as List<dynamic>?)
               ?.map((e) => e.toString())

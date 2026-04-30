@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 import '../models/transaction_packet.dart';
 import '../data/local_db.dart';
 import 'nearby_mesh_service.dart';
+import 'security_service.dart';
+import 'notification_service.dart';
 
 /// ════════════════════════════════════════════════
 /// MeshManager — المدير الرئيسي (Singleton)
@@ -72,7 +74,12 @@ class MeshManager {
     await LocalDB.initialize();
 
     // إعداد NearbyMeshService
-    _nearby.configure(userName: 'JISR_$userId', deviceId: _myDeviceId);
+    await SecurityService.instance.initialize();
+    await _nearby.configure(
+      userName: 'JISR_$userId',
+      deviceId: _myDeviceId,
+      userId: _myUserId,
+    );
     _nearby.onPacketReceived = onPacketReceived;
 
     debugPrint('🌐 MeshManager: تم التهيئة');
@@ -119,10 +126,19 @@ class MeshManager {
 
     // 2. أنشئ الحوالة
     final txnId = _uuid.v4();
-    final signature = TransactionPacket.generateSignature(
+    final unsigned = TransactionPacket(
       id: txnId,
-      amount: amount,
+      senderId: _myUserId,
       receiverId: receiverId,
+      amount: amount,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      signature: '',
+      signerPublicKey: SecurityService.instance.signingPublicKeyB64,
+      ttl: 10,
+      path: [_myDeviceId],
+    );
+    final signature = await SecurityService.instance.signToB64(
+      unsigned.signingPayload().codeUnits,
     );
 
     final txn = TransactionPacket(
@@ -130,8 +146,9 @@ class MeshManager {
       senderId: _myUserId,
       receiverId: receiverId,
       amount: amount,
-      timestamp: DateTime.now().millisecondsSinceEpoch,
+      timestamp: unsigned.timestamp,
       signature: signature,
+      signerPublicKey: SecurityService.instance.signingPublicKeyB64,
       ttl: 10,
       path: [_myDeviceId],
     );
@@ -152,11 +169,11 @@ class MeshManager {
   // ──────────────────────────────────────────
 
   /// يُستدعى لما نستقبل حوالة من جهاز آخر
-  void onPacketReceived(TransactionPacket txn) {
+  Future<void> onPacketReceived(TransactionPacket txn) async {
     debugPrint('📥 MeshManager: حوالة واردة — $txn');
 
     // ── 1. تحقق من التوقيع ──
-    if (!txn.verifySignature()) {
+    if (!await txn.verifySignature()) {
       debugPrint('🚫 MeshManager: توقيع خاطئ! تم رفض الحوالة ${txn.id}');
       return;
     }
@@ -178,17 +195,21 @@ class MeshManager {
   }
 
   /// معالجة حوالة موجّهة لي
-  void _handleMyTransaction(TransactionPacket txn) {
+  Future<void> _handleMyTransaction(TransactionPacket txn) async {
     debugPrint('💰 MeshManager: وصلتني حوالة! ${txn.amount}');
 
     // أضف المبلغ لرصيدي
-    LocalDB.credit(txn.amount);
+    await LocalDB.credit(txn.amount);
 
     // سجّلها كمكتملة
-    LocalDB.markCompleted(txn);
+    await LocalDB.markCompleted(txn);
 
     // أبلّغ الواجهة
     _incomingController.add(txn);
+    await NotificationService.instance.showIncomingTransfer(
+      senderId: txn.senderId,
+      amount: txn.amount,
+    );
     debugPrint('🔔 MeshManager: إشعار — وصلك ${txn.amount} من ${txn.senderId}');
   }
 

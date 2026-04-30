@@ -1,5 +1,4 @@
-﻿import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/material.dart';
 
 class AppTheme {
   static const Color background = Color(0xFF0A0E21);
@@ -21,13 +20,13 @@ class AppTheme {
     scaffoldBackgroundColor: background,
     primaryColor: primaryEmerald,
     hintColor: primaryBlue,
-    textTheme: GoogleFonts.tajawalTextTheme(ThemeData.dark().textTheme).copyWith(
-      displayLarge: GoogleFonts.tajawal(
+    textTheme: ThemeData.dark().textTheme.copyWith(
+      displayLarge: const TextStyle(
         fontSize: 32,
         fontWeight: FontWeight.bold,
         color: textPrimary,
       ),
-      bodyLarge: GoogleFonts.tajawal(
+      bodyLarge: const TextStyle(
         fontSize: 16,
         color: textPrimary,
       ),

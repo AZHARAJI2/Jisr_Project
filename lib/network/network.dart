@@ -8,3 +8,5 @@
 export 'nearby_mesh_service.dart';
 export 'mesh_manager.dart';
 export 'foreground_service.dart';
+export 'security_service.dart';
+export 'notification_service.dart';
