@@ -316,7 +316,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('النشاط الأخير', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white60)),
+        const Text(
+          'النشاط الأخير',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white60),
+        ),
         const SizedBox(height: 15),
         if (allTxns.isEmpty)
           Center(

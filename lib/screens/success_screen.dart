@@ -46,13 +46,13 @@ class SuccessScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(25),
                       child: Column(
                         children: [
-                          if (amount.isNotEmpty) _buildRow('المبلغ:', amount, isHighlight: true),
+                          if (amount.isNotEmpty) _buildRow(context, 'المبلغ:', amount, isHighlight: true),
                           if (recipient.isNotEmpty) ...[
                             const Divider(color: Colors.white10, height: 30),
-                            _buildRow('إلى:', recipient),
+                            _buildRow(context, 'إلى:', recipient),
                           ],
                           const Divider(color: Colors.white10, height: 30),
-                          _buildRow('الطريقة:', 'شبكة Mesh', color: AppTheme.primaryBlue),
+                          _buildRow(context, 'الطريقة:', 'شبكة Mesh', color: AppTheme.primaryBlue),
                         ],
                       ),
                     ),
@@ -77,7 +77,7 @@ class SuccessScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRow(String label, String value, {bool isHighlight = false, Color? color}) {
+  Widget _buildRow(BuildContext context, String label, String value, {bool isHighlight = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
