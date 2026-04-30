@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class WorldMapPainter extends CustomPainter {
@@ -20,16 +20,8 @@ class WorldMapPainter extends CustomPainter {
     _drawContinent(canvas, size, 0.8, 0.7, 0.08, 0.08); // AU
 
     final center = Offset(size.width * 0.5, size.height * 0.55);
-    final pointTemplates = <Offset>[
-      Offset(size.width * 0.22, size.height * 0.34),
-      Offset(size.width * 0.78, size.height * 0.32),
-      Offset(size.width * 0.30, size.height * 0.62),
-      Offset(size.width * 0.72, size.height * 0.64),
-      Offset(size.width * 0.52, size.height * 0.25),
-      Offset(size.width * 0.52, size.height * 0.78),
-    ];
-
-    final shownPeers = peers.take(6).toList();
+    final shownPeers = peers;
+    final pointTemplates = _generatePeerPoints(size, shownPeers.length);
     for (var i = 0; i < shownPeers.length; i++) {
       final name = shownPeers[i].replaceAll('JISR_', '');
       final point = pointTemplates[i];
@@ -49,6 +41,24 @@ class WorldMapPainter extends CustomPainter {
     }
     _drawNode(canvas, name: 'أنت', pos: center, color: AppTheme.primaryBlue);
   }
+
+  List<Offset> _generatePeerPoints(Size size, int count) {
+    if (count <= 0) return const <Offset>[];
+    final points = <Offset>[];
+    final cx = size.width * 0.5;
+    final cy = size.height * 0.55;
+    final rx = size.width * 0.33;
+    final ry = size.height * 0.28;
+
+    for (var i = 0; i < count; i++) {
+      final t = (2 * 3.141592653589793 * i) / count;
+      points.add(Offset(cx + rx * _cos(t), cy + ry * _sin(t)));
+    }
+    return points;
+  }
+
+  double _sin(double x) => MathCompat.sin(x);
+  double _cos(double x) => MathCompat.cos(x);
 
   void _drawContinent(Canvas canvas, Size size, double x, double y, double w, double h) {
     canvas.drawOval(
@@ -104,4 +114,29 @@ class WorldMapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant WorldMapPainter oldDelegate) =>
       oldDelegate.peers != peers || oldDelegate.bestPeer != bestPeer;
+}
+
+class MathCompat {
+  static double sin(double x) => _sinTable(x, true);
+  static double cos(double x) => _sinTable(x, false);
+
+  // Avoid adding dart:math import to keep file minimal.
+  static double _sinTable(double x, bool sine) {
+    // 5th-order approximation is enough for UI point layout.
+    final y = sine ? x : (x + 1.5707963267948966);
+    final wrapped = _wrapPi(y);
+    final x2 = wrapped * wrapped;
+    return wrapped * (1 - x2 / 6 + (x2 * x2) / 120);
+  }
+
+  static double _wrapPi(double x) {
+    const twoPi = 6.283185307179586;
+    while (x > 3.141592653589793) {
+      x -= twoPi;
+    }
+    while (x < -3.141592653589793) {
+      x += twoPi;
+    }
+    return x;
+  }
 }

@@ -60,6 +60,7 @@ class MeshManager {
   final _traceController = StreamController<TransferTracePoint>.broadcast();
   Stream<TransferTracePoint> get traceStream => _traceController.stream;
   final Map<String, List<TransferTracePoint>> _traceByTxn = {};
+  final Map<String, Set<String>> _topology = {};
 
   /// Stream لحالة الشبكة
   Stream<String> get statusStream => _nearby.statusStream;
@@ -102,6 +103,7 @@ class MeshManager {
     );
     _nearby.onPacketReceived = onPacketReceived;
     _nearby.onTraceReceived = _onTraceReceived;
+    _nearby.onTopologyReceived = _onTopologyReceived;
 
     debugPrint('🌐 MeshManager: تم التهيئة');
     debugPrint('🌐 MeshManager: userId=$_myUserId');
@@ -204,8 +206,8 @@ class MeshManager {
       return;
     }
 
-    // ── 2. تحقق من التكرار ──
-    if (LocalDB.isCompleted(txn.id) || LocalDB.hasPending(txn.id)) {
+    // ── 2. تحقق من التكرار المكتمل ──
+    if (LocalDB.isCompleted(txn.id)) {
       debugPrint('🔄 MeshManager: حوالة مكررة ${txn.id} — تجاهل');
       return;
     }
@@ -216,6 +218,12 @@ class MeshManager {
       return;
     }
 
+    // ── 3.5 إذا كانت معلقة عندي وأنا لست المستلم فهي مكررة ──
+    if (LocalDB.hasPending(txn.id)) {
+      debugPrint('🔄 MeshManager: حوالة معلّقة مسبقاً ${txn.id} — تجاهل');
+      return;
+    }
+
     // ── 4. أنا وسيط ──
     await _handleRelayTransaction(txn);
   }
@@ -223,6 +231,11 @@ class MeshManager {
   /// معالجة حوالة موجّهة لي
   Future<void> _handleMyTransaction(TransactionPacket txn) async {
     debugPrint('💰 MeshManager: وصلتني حوالة! ${txn.amount}');
+
+    // أكمل المسار بالمستلم حتى يظهر التتبع حتى في التحويل المباشر.
+    if (!txn.path.contains(_myDeviceId)) {
+      txn.path.add(_myDeviceId);
+    }
 
     // أضف المبلغ لرصيدي
     await LocalDB.credit(txn.amount);
@@ -310,6 +323,18 @@ class MeshManager {
   List<TransactionPacket> get completedTransactions => LocalDB.getAllCompleted();
   List<TransferTracePoint> getTrace(String txnId) =>
       List.unmodifiable(_traceByTxn[txnId] ?? const []);
+  Map<String, List<String>> getKnownTopology() {
+    final copy = <String, List<String>>{};
+    for (final entry in _topology.entries) {
+      copy[entry.key] = entry.value.toList()..sort();
+    }
+    final localNeighbors = connectedDevices
+        .map((d) => d.replaceFirst('JISR_', ''))
+        .toSet();
+    copy[_myUserId] = (copy[_myUserId] ?? <String>[])..addAll(localNeighbors);
+    copy[_myUserId] = copy[_myUserId]!.toSet().toList()..sort();
+    return copy;
+  }
 
   Future<void> _recordAndPublishTrace({
     required String txnId,
@@ -324,6 +349,7 @@ class MeshManager {
       path: List<String>.from(path),
     );
     _traceByTxn.putIfAbsent(txnId, () => []).add(point);
+    _mergePathIntoTopology(point.path);
     _traceController.add(point);
     await _nearby.publishTraceEvent(
       txnId: txnId,
@@ -351,7 +377,54 @@ class MeshManager {
     if (duplicate) return;
     bucket.add(point);
     bucket.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    _mergePathIntoTopology(point.path);
     _traceController.add(point);
+
+    // إذا وصل حدث التسليم، انقل الحوالة (إن كانت معلّقة عندي) إلى مكتملة.
+    if (point.state == 'delivered' && LocalDB.hasPending(txnId)) {
+      final pending = LocalDB.getPendingById(txnId);
+      if (pending != null) {
+        // لا تعتبرها مكتملة إلا إذا حدث التسليم من المستلم الحقيقي نفسه.
+        if (pending.receiverId == point.nodeId) {
+          await LocalDB.markCompleted(pending);
+          // إشعار المرسل بعد اكتمال التسليم الحقيقي فقط.
+          if (pending.senderId == _myUserId) {
+            await NotificationService.instance.showSentTransfer(
+              receiverId: pending.receiverId,
+              amount: pending.amount,
+            );
+          }
+        }
+      } else {
+        await LocalDB.removePending(txnId);
+      }
+      debugPrint('✅ MeshManager: تم تحديث الحوالة إلى مكتملة عبر trace delivered: $txnId');
+    }
+  }
+
+  Future<void> _onTopologyReceived(Map<String, dynamic> topo) async {
+    final node = (topo['nodeId'] as String? ?? '').trim();
+    if (node.isEmpty) return;
+    final neighbors = (topo['neighbors'] as List<dynamic>? ?? const [])
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    if (neighbors.isEmpty) return;
+    final set = _topology.putIfAbsent(node, () => <String>{});
+    set.addAll(neighbors);
+    for (final n in neighbors) {
+      _topology.putIfAbsent(n, () => <String>{}).add(node);
+    }
+  }
+
+  void _mergePathIntoTopology(List<String> path) {
+    if (path.length < 2) return;
+    for (var i = 0; i < path.length - 1; i++) {
+      final a = path[i];
+      final b = path[i + 1];
+      _topology.putIfAbsent(a, () => <String>{}).add(b);
+      _topology.putIfAbsent(b, () => <String>{}).add(a);
+    }
   }
 
   // ──────────────────────────────────────────

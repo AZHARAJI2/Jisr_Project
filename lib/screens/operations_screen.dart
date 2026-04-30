@@ -2,10 +2,31 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../network/network.dart';
-import '../data/data.dart';
+import 'dart:async';
 
-class OperationsScreen extends StatelessWidget {
+class OperationsScreen extends StatefulWidget {
   const OperationsScreen({Key? key}) : super(key: key);
+
+  @override
+  State<OperationsScreen> createState() => _OperationsScreenState();
+}
+
+class _OperationsScreenState extends State<OperationsScreen> {
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +70,7 @@ class OperationsScreen extends StatelessWidget {
                   final isIn = txn.receiverId == mesh.userId;
                   return _buildItem(
                     isIn ? 'استقبال' : 'إرسال',
-                    'مكتملة ✅',
+                    isIn ? 'تم استلام الحوالة ✅' : 'تم إرسال الحوالة ✅',
                     '${isIn ? "+" : "-"} ${txn.amount.toStringAsFixed(0)} ريال',
                     isIn ? AppTheme.primaryEmerald : Colors.white70,
                   );

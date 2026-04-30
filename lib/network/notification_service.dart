@@ -49,4 +49,26 @@ class NotificationService {
       details,
     );
   }
+
+  Future<void> showSentTransfer({
+    required String receiverId,
+    required double amount,
+  }) async {
+    await initialize();
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'jisr_transfers',
+        'Jisr Transfers',
+        channelDescription: 'Notifications for incoming mesh transfers',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+      ),
+    );
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      'تم إرسال الحوالة',
+      'أرسلت $amount إلى $receiverId',
+      details,
+    );
+  }
 }

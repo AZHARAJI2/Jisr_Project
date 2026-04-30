@@ -79,6 +79,7 @@ class NearbyMeshService {
 
   Future<void> Function(TransactionPacket txn)? onPacketReceived;
   Future<void> Function(Map<String, dynamic> trace)? onTraceReceived;
+  Future<void> Function(Map<String, dynamic> topology)? onTopologyReceived;
 
   final _statusCtrl = StreamController<String>.broadcast();
   Stream<String> get statusStream => _statusCtrl.stream;
@@ -229,7 +230,7 @@ class NearbyMeshService {
       _log('📡 بدء البث...');
       final ok = await _ch.invokeMethod<bool>('startAdvertising', <String, dynamic>{
         'userNickName': _userName,
-        'strategy': 2, // P2P_CLUSTER
+        'strategy': 0, // P2P_CLUSTER
         'serviceId': _serviceId,
       }) ?? false;
       _log('📡 البث: ${ok ? "✅ يعمل" : "❌"}');
@@ -248,7 +249,7 @@ class NearbyMeshService {
       _log('🔍 بدء الاكتشاف...');
       final ok = await _ch.invokeMethod<bool>('startDiscovery', <String, dynamic>{
         'userNickName': _userName,
-        'strategy': 2,
+        'strategy': 0, // P2P_CLUSTER
         'serviceId': _serviceId,
       }) ?? false;
       _log('🔍 الاكتشاف: ${ok ? "✅ يعمل" : "❌"}');
@@ -262,7 +263,7 @@ class NearbyMeshService {
       try {
         final retry = await _ch.invokeMethod<bool>('startDiscovery', <String, dynamic>{
           'userNickName': _userName,
-          'strategy': 2,
+          'strategy': 0, // P2P_CLUSTER
           'serviceId': _serviceId,
         }) ?? false;
         _log('🔁 إعادة محاولة الاكتشاف: ${retry ? "✅" : "❌"}');
@@ -325,6 +326,7 @@ class NearbyMeshService {
       _log('🎉🎉 متصل بـ $name! (${_connectedEndpoints.length})');
       _sendHello(id);
       _sendPending(id);
+      _broadcastTopology();
     } else {
       _log('❌ اتصال: $id → code=$statusCode');
     }
@@ -342,6 +344,7 @@ class NearbyMeshService {
         ? 'شبكة نشطة 🔵 — يبحث...'
         : 'متصل بـ ${_connectedEndpoints.length} جهاز 🟢');
     _log('🔌 انقطع $name');
+    _broadcastTopology();
   }
 
   // ──────────────────────────────────────────
@@ -369,8 +372,12 @@ class NearbyMeshService {
         await _handleTraceMessage(id, msg);
         return;
       }
+      if (type == 'topo') {
+        await _handleTopologyMessage(id, msg);
+        return;
+      }
 
-      _log('🚫 payload غير معتمد (ليس hello/txn)');
+      _log('🚫 payload غير معتمد (ليس hello/txn/trace/topo)');
     } catch (e) {
       _log('⚠️ بيانات: $e');
     }
@@ -430,10 +437,18 @@ class NearbyMeshService {
     }
   }
 
-  Future<void> broadcastTransaction(TransactionPacket txn) async {
+  Future<bool> broadcastTransaction(TransactionPacket txn) async {
     final eps = _connectedEndpoints.keys.toList();
-    if (eps.isEmpty) { _log('⚠️ لا أجهزة'); return; }
-    for (final ep in eps) { await sendTransaction(txn, ep); }
+    if (eps.isEmpty) {
+      _log('⚠️ لا أجهزة');
+      return false;
+    }
+    var anySuccess = false;
+    for (final ep in eps) {
+      final ok = await sendTransaction(txn, ep);
+      anySuccess = anySuccess || ok;
+    }
+    return anySuccess;
   }
 
   Future<void> _sendHello(String endpointId) async {
@@ -595,6 +610,27 @@ class NearbyMeshService {
     final forward = Map<String, dynamic>.from(msg);
     forward['ttl'] = ttl - 1;
     await _broadcastRaw(jsonEncode(forward), exceptEndpoint: fromEndpoint);
+  }
+
+  Future<void> _handleTopologyMessage(String fromEndpoint, Map<String, dynamic> msg) async {
+    _touchPeer(fromEndpoint);
+    await onTopologyReceived?.call(msg);
+  }
+
+  Future<void> _broadcastTopology() async {
+    final neighbors = _connectedEndpoints.entries.map((entry) {
+      final ep = entry.key;
+      final user = _peerUserByEndpoint[ep];
+      if (user != null && user.isNotEmpty) return user;
+      return entry.value.replaceFirst('JISR_', '');
+    }).toList();
+    final msg = <String, dynamic>{
+      'type': 'topo',
+      'nodeId': _userId,
+      'neighbors': neighbors,
+      'ts': DateTime.now().millisecondsSinceEpoch,
+    };
+    await _broadcastRaw(jsonEncode(msg));
   }
 
   void _rememberSecureFrame(String frameId) {

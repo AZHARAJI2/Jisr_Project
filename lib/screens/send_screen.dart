@@ -101,7 +101,7 @@ class _SendScreenState extends State<SendScreen> {
                             child: _isSending
                                 ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                 : const Text(
-                                    'إرسال الآن 🚀',
+                                    'إرسال الآن',
                                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                                   ),
                           ),

@@ -498,9 +498,6 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
 
             Log.d("nearby_connections", "Preparing AUTO requestConnection (initiator) -> " + endpointId);
 
-            // خفف ضغط الراديو قبل طلب الاتصال.
-            Nearby.getConnectionsClient(activity).stopDiscovery();
-
             // انتظر قليلا حتى يستقر الطرفان قبل requestConnection.
             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                 Log.d("nearby_connections", "Executing requestConnection -> " + endpointId);

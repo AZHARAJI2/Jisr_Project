@@ -102,6 +102,19 @@ class LocalDB {
     return packets;
   }
 
+  /// جلب حوالة معلّقة بالمعرّف
+  static TransactionPacket? getPendingById(String txnId) {
+    final box = Hive.box(_pendingBox);
+    final json = box.get(txnId);
+    if (json == null) return null;
+    try {
+      return TransactionPacket.fromJson(Map<String, dynamic>.from(json as Map));
+    } catch (e) {
+      debugPrint('⚠️ LocalDB: تعذر قراءة حوالة معلّقة $txnId: $e');
+      return null;
+    }
+  }
+
   /// حذف حوالة معلّقة (بعد إتمامها أو انتهاء صلاحيتها)
   static Future<void> removePending(String txnId) async {
     final box = Hive.box(_pendingBox);
