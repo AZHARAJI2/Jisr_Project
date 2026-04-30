@@ -267,12 +267,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildMeshMapSection() {
+    final peers = _mesh.connectedDevices;
+    final bestPeer = _mesh.peerTelemetry.isEmpty ? null : _mesh.peerTelemetry.first.displayName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'خريطة الشبكة',
+          'الخريطة العامة للشبكة',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white60),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'تعرض الأجهزة القريبة بشكل عام. التفاصيل داخل تبويب "الشبكة".',
+          style: const TextStyle(fontSize: 11, color: Colors.white54),
         ),
         const SizedBox(height: 15),
         GlassCard(
@@ -282,10 +289,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             padding: const EdgeInsets.all(15),
             child: CustomPaint(
               size: Size.infinite,
-              painter: WorldMapPainter(),
+              painter: WorldMapPainter(
+                peers: peers,
+                bestPeer: bestPeer,
+              ),
             ),
           ),
         ),
+        if (peers.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            'قريبون الآن: ${peers.join(' • ')}',
+            style: const TextStyle(color: AppTheme.primaryEmerald, fontSize: 12),
+          ),
+        ],
       ],
     );
   }

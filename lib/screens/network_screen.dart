@@ -15,32 +15,28 @@ class _NetworkScreenState extends State<NetworkScreen> {
   final MeshManager _mesh = MeshManager.instance;
   int _peers = 0;
   List<String> _devices = [];
-  List<String> _logs = [];
+  List<PeerTelemetry> _telemetry = [];
   StreamSubscription<int>? _peersSub;
-  StreamSubscription<String>? _logSub;
 
   @override
   void initState() {
     super.initState();
     _peers = _mesh.connectedCount;
     _devices = _mesh.connectedDevices;
-    _logs = _mesh.logs;
+    _telemetry = _mesh.peerTelemetry;
 
     _peersSub = _mesh.peersStream.listen((c) {
       if (mounted) setState(() {
         _peers = c;
         _devices = _mesh.connectedDevices;
+        _telemetry = _mesh.peerTelemetry;
       });
-    });
-    _logSub = _mesh.logStream.listen((_) {
-      if (mounted) setState(() => _logs = _mesh.logs);
     });
   }
 
   @override
   void dispose() {
     _peersSub?.cancel();
-    _logSub?.cancel();
     super.dispose();
   }
 
@@ -86,77 +82,8 @@ class _NetworkScreenState extends State<NetworkScreen> {
                       const SizedBox(height: 30),
                       _buildStatusLegend(),
                       
-                      const Divider(color: Colors.white10, height: 40),
-                      
-                      _buildNetworkStats(),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // الأجهزة المتصلة
-              if (_devices.isNotEmpty)
-                GlassCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('الأجهزة المتصلة:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryEmerald)),
-                        const SizedBox(height: 10),
-                        ..._devices.map((d) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(children: [
-                            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-                            const SizedBox(width: 10),
-                            const Icon(Icons.phone_android, size: 16, color: Colors.green),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(d, style: const TextStyle(fontSize: 13))),
-                          ]),
-                        )),
-                      ],
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 20),
-
-              // سجل الأحداث
-              GlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('📋 سجل الأحداث', style: TextStyle(color: AppTheme.primaryEmerald, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 10),
-                      Container(
-                        height: 200,
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: _logs.isEmpty
-                            ? const Text('لا أحداث بعد...', style: TextStyle(color: Colors.grey, fontSize: 12))
-                            : ListView.builder(
-                                reverse: true,
-                                itemCount: _logs.length,
-                                itemBuilder: (_, i) {
-                                  final log = _logs[_logs.length - 1 - i];
-                                  Color color = Colors.white70;
-                                  if (log.contains('✅')) color = Colors.greenAccent;
-                                  if (log.contains('❌')) color = Colors.redAccent;
-                                  if (log.contains('🔍')) color = Colors.cyanAccent;
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 1),
-                                    child: Text(log, style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace')),
-                                  );
-                                },
-                              ),
-                      ),
+                      const Divider(color: Colors.white10, height: 30),
+                      _buildBestRouteOnlyCard(),
                     ],
                   ),
                 ),
@@ -178,7 +105,6 @@ class _NetworkScreenState extends State<NetworkScreen> {
           CustomPaint(size: Size.infinite, painter: GraphPainter()),
           _buildNode(0, -130, 'أنت', AppTheme.primaryEmerald, isSelf: true),
           ..._devices.asMap().entries.map((e) {
-            final angle = (e.key * 2.0 * 3.14159) / _devices.length;
             final x = 80.0 * (e.key % 2 == 0 ? -1 : 1);
             final y = -40.0 + (e.key * 50.0);
             return _buildNode(x, y, e.value.replaceAll('JISR_', ''), Colors.green, isActive: true);
@@ -244,24 +170,37 @@ class _NetworkScreenState extends State<NetworkScreen> {
     );
   }
 
-  Widget _buildNetworkStats() {
-    return Column(
-      children: [
-        _buildStatItem('أجهزة متصلة:', '$_peers', color: AppTheme.primaryEmerald),
-        const SizedBox(height: 10),
-        _buildStatItem('حوالات معلّقة:', '${_mesh.pendingTransactions.length}'),
-        const SizedBox(height: 10),
-        _buildStatItem('حوالات مكتملة:', '${_mesh.completedTransactions.length}'),
-      ],
-    );
-  }
-
   Widget _buildStatItem(String label, String value, {Color? color}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
         Text(value, style: TextStyle(color: color ?? Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+      ],
+    );
+  }
+
+  Widget _buildBestRouteOnlyCard() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final best = _telemetry.isEmpty ? null : _telemetry.first.displayName;
+    final bestRoute = _telemetry.take(3).map((e) => e.displayName).join(' ← ');
+    return Column(
+      children: [
+        _buildStatItem('الأجهزة المتصلة:', '$_peers', color: AppTheme.primaryEmerald),
+        const SizedBox(height: 10),
+        _buildStatItem('أقرب/أفضل هاتف:', best ?? 'غير متاح', color: Colors.amber),
+        const SizedBox(height: 10),
+        _buildStatItem(
+          'أفضل مسار:',
+          bestRoute.isEmpty ? 'غير متاح' : bestRoute,
+          color: Colors.amber,
+        ),
+        const SizedBox(height: 10),
+        _buildStatItem(
+          'درجة المسار:',
+          _telemetry.isEmpty ? '-' : _telemetry.first.score(now).toStringAsFixed(1),
+          color: Colors.amber,
+        ),
       ],
     );
   }

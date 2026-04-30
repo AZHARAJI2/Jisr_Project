@@ -6,6 +6,38 @@ import '../models/transaction_packet.dart';
 import '../data/local_db.dart';
 import 'security_service.dart';
 
+class PeerTelemetry {
+  final String endpointId;
+  final String displayName;
+  final int successfulSends;
+  final int failedSends;
+  final int routedTransfers;
+  final int lastSeenMs;
+  final int lastHelloMs;
+
+  const PeerTelemetry({
+    required this.endpointId,
+    required this.displayName,
+    required this.successfulSends,
+    required this.failedSends,
+    required this.routedTransfers,
+    required this.lastSeenMs,
+    required this.lastHelloMs,
+  });
+
+  double get successRate {
+    final total = successfulSends + failedSends;
+    if (total <= 0) return 0.5;
+    return successfulSends / total;
+  }
+
+  double score(int nowMs) {
+    final ageSec = ((nowMs - lastSeenMs).clamp(0, 120000)) / 1000.0;
+    final freshness = (1.0 - (ageSec / 120.0)).clamp(0.0, 1.0);
+    return (successRate * 65.0) + (freshness * 25.0) + (routedTransfers * 2.0);
+  }
+}
+
 /// ════════════════════════════════════════════════
 /// NearbyMeshService — 100% مباشر بدون مكتبة
 ///
@@ -26,8 +58,15 @@ class NearbyMeshService {
   final Map<String, String> _peerUserByEndpoint = {};
   final Map<String, String> _peerSignPubByEndpoint = {};
   final Map<String, String> _peerKxPubByEndpoint = {};
+  final Map<String, int> _peerSuccessCount = {};
+  final Map<String, int> _peerFailCount = {};
+  final Map<String, int> _peerRouteCount = {};
+  final Map<String, int> _peerLastSeenMs = {};
+  final Map<String, int> _peerLastHelloMs = {};
   final Set<String> _seenSecureFrames = <String>{};
   final List<String> _seenSecureFramesOrder = <String>[];
+  final Set<String> _seenTraceEvents = <String>{};
+  final List<String> _seenTraceEventsOrder = <String>[];
   final Set<String> _pendingRequests = {};
   final Set<String> _helloSent = {};
   static const int _maxClockSkewMs = 2 * 60 * 1000;
@@ -39,6 +78,7 @@ class NearbyMeshService {
   List<String> get connectedDevices => _connectedEndpoints.values.toList();
 
   Future<void> Function(TransactionPacket txn)? onPacketReceived;
+  Future<void> Function(Map<String, dynamic> trace)? onTraceReceived;
 
   final _statusCtrl = StreamController<String>.broadcast();
   Stream<String> get statusStream => _statusCtrl.stream;
@@ -65,6 +105,7 @@ class NearbyMeshService {
           case 'dis.onEndpointFound':
             final id = args['endpointId'] as String? ?? '';
             final name = args['endpointName'] as String? ?? '';
+            _touchPeer(id);
             _log('🔍✅ وُجد: $name ($id)');
             _handleEndpointFound(id, name);
             break;
@@ -79,6 +120,7 @@ class NearbyMeshService {
           case 'dis.onConnectionInitiated':
             final id = args['endpointId'] as String? ?? '';
             final name = args['endpointName'] as String? ?? '';
+            _touchPeer(id);
             _log('🤝 [DIS] اتصال: $name ($id)');
             _log('🤝 [DIS] auto-accepted in native plugin');
             break;
@@ -86,6 +128,7 @@ class NearbyMeshService {
           case 'dis.onConnectionResult':
             final id = args['endpointId'] as String? ?? '';
             final code = args['statusCode'] as int? ?? 2;
+            _touchPeer(id);
             _log('📊 [DIS] نتيجة: $id → $code');
             _handleConnectionResult(id, code);
             break;
@@ -99,6 +142,7 @@ class NearbyMeshService {
           case 'ad.onConnectionInitiated':
             final id = args['endpointId'] as String? ?? '';
             final name = args['endpointName'] as String? ?? '';
+            _touchPeer(id);
             _log('🤝 [AD] وارد: $name ($id)');
             _log('🤝 [AD] auto-accepted in native plugin');
             break;
@@ -106,6 +150,7 @@ class NearbyMeshService {
           case 'ad.onConnectionResult':
             final id = args['endpointId'] as String? ?? '';
             final code = args['statusCode'] as int? ?? 2;
+            _touchPeer(id);
             _log('📊 [AD] نتيجة: $id → $code');
             _handleConnectionResult(id, code);
             break;
@@ -212,6 +257,18 @@ class NearbyMeshService {
       _setupHandler();
     } catch (e) {
       _log('❌ اكتشاف: $e');
+      // بعض الأجهزة ترجع خطأ صلاحية مؤقت؛ أعد المحاولة مرة واحدة.
+      await Future.delayed(const Duration(seconds: 2));
+      try {
+        final retry = await _ch.invokeMethod<bool>('startDiscovery', <String, dynamic>{
+          'userNickName': _userName,
+          'strategy': 2,
+          'serviceId': _serviceId,
+        }) ?? false;
+        _log('🔁 إعادة محاولة الاكتشاف: ${retry ? "✅" : "❌"}');
+      } catch (retryErr) {
+        _log('❌ فشل إعادة الاكتشاف: $retryErr');
+      }
     }
 
     _emitStatus('شبكة نشطة 🔵 — يبحث عن أجهزة...');
@@ -229,6 +286,11 @@ class NearbyMeshService {
     _peerUserByEndpoint.clear();
     _peerSignPubByEndpoint.clear();
     _peerKxPubByEndpoint.clear();
+    _peerSuccessCount.clear();
+    _peerFailCount.clear();
+    _peerRouteCount.clear();
+    _peerLastSeenMs.clear();
+    _peerLastHelloMs.clear();
     _pendingRequests.clear();
     _helloSent.clear();
     _emitStatus('متوقف');
@@ -303,6 +365,10 @@ class NearbyMeshService {
         await _handleSecureTransactionMessage(id, msg);
         return;
       }
+      if (type == 'trace') {
+        await _handleTraceMessage(id, msg);
+        return;
+      }
 
       _log('🚫 payload غير معتمد (ليس hello/txn)');
     } catch (e) {
@@ -352,9 +418,13 @@ class NearbyMeshService {
         'endpointId': epId,
         'bytes': bytes,
       });
+      _peerSuccessCount[epId] = (_peerSuccessCount[epId] ?? 0) + 1;
+      _touchPeer(epId);
       _log('📤✅ ${txn.id.substring(0, 8)}');
       return true;
     } catch (e) {
+      _peerFailCount[epId] = (_peerFailCount[epId] ?? 0) + 1;
+      _touchPeer(epId);
       _log('📤❌ $e');
       return false;
     }
@@ -429,6 +499,7 @@ class NearbyMeshService {
     _peerUserByEndpoint[endpointId] = userId;
     _peerSignPubByEndpoint[endpointId] = sigPub;
     _peerKxPubByEndpoint[endpointId] = kxPub;
+    _peerLastHelloMs[endpointId] = DateTime.now().millisecondsSinceEpoch;
     _connectedEndpoints[endpointId] = userId.isEmpty ? endpointId : userId;
     _peersCtrl.add(_connectedEndpoints.length);
     _log('🔐 HELLO OK <- ${userId.isEmpty ? endpointId : userId}');
@@ -485,8 +556,45 @@ class NearbyMeshService {
       aad: aad,
     );
     final txn = TransactionPacket.fromJsonString(plain);
+    _peerRouteCount[endpointId] = (_peerRouteCount[endpointId] ?? 0) + 1;
+    _touchPeer(endpointId);
     _log('📥🔐 حوالة: ${txn.amount} ${txn.senderId}→${txn.receiverId}');
     await onPacketReceived?.call(txn);
+  }
+
+  Future<void> publishTraceEvent({
+    required String txnId,
+    required String state,
+    required List<String> path,
+    int ttl = 4,
+  }) async {
+    final eventId = 'trace-$txnId-$_userId-${DateTime.now().millisecondsSinceEpoch}';
+    _rememberTrace(eventId);
+    final trace = <String, dynamic>{
+      'type': 'trace',
+      'eventId': eventId,
+      'txnId': txnId,
+      'nodeId': _userId,
+      'state': state,
+      'path': path,
+      'ts': DateTime.now().millisecondsSinceEpoch,
+      'ttl': ttl,
+    };
+    await _broadcastRaw(jsonEncode(trace));
+  }
+
+  Future<void> _handleTraceMessage(String fromEndpoint, Map<String, dynamic> msg) async {
+    final eventId = msg['eventId'] as String? ?? '';
+    if (eventId.isEmpty || _seenTraceEvents.contains(eventId)) return;
+    _rememberTrace(eventId);
+    _touchPeer(fromEndpoint);
+    await onTraceReceived?.call(msg);
+
+    final ttl = (msg['ttl'] as int?) ?? 0;
+    if (ttl <= 0) return;
+    final forward = Map<String, dynamic>.from(msg);
+    forward['ttl'] = ttl - 1;
+    await _broadcastRaw(jsonEncode(forward), exceptEndpoint: fromEndpoint);
   }
 
   void _rememberSecureFrame(String frameId) {
@@ -495,6 +603,51 @@ class NearbyMeshService {
     if (_seenSecureFramesOrder.length <= _maxReplayCache) return;
     final oldest = _seenSecureFramesOrder.removeAt(0);
     _seenSecureFrames.remove(oldest);
+  }
+
+  void _rememberTrace(String eventId) {
+    _seenTraceEvents.add(eventId);
+    _seenTraceEventsOrder.add(eventId);
+    if (_seenTraceEventsOrder.length <= _maxReplayCache) return;
+    final oldest = _seenTraceEventsOrder.removeAt(0);
+    _seenTraceEvents.remove(oldest);
+  }
+
+  void _touchPeer(String endpointId) {
+    _peerLastSeenMs[endpointId] = DateTime.now().millisecondsSinceEpoch;
+  }
+
+  Future<void> _broadcastRaw(String payload, {String? exceptEndpoint}) async {
+    final bytes = Uint8List.fromList(utf8.encode(payload));
+    final endpoints = _connectedEndpoints.keys.toList();
+    for (final ep in endpoints) {
+      if (exceptEndpoint != null && ep == exceptEndpoint) continue;
+      try {
+        await _ch.invokeMethod('sendPayload', <String, dynamic>{
+          'endpointId': ep,
+          'bytes': bytes,
+        });
+      } catch (_) {}
+    }
+  }
+
+  List<PeerTelemetry> getPeerTelemetry() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final peers = <PeerTelemetry>[];
+    for (final entry in _connectedEndpoints.entries) {
+      final ep = entry.key;
+      peers.add(PeerTelemetry(
+        endpointId: ep,
+        displayName: entry.value,
+        successfulSends: _peerSuccessCount[ep] ?? 0,
+        failedSends: _peerFailCount[ep] ?? 0,
+        routedTransfers: _peerRouteCount[ep] ?? 0,
+        lastSeenMs: _peerLastSeenMs[ep] ?? now,
+        lastHelloMs: _peerLastHelloMs[ep] ?? 0,
+      ));
+    }
+    peers.sort((a, b) => b.score(now).compareTo(a.score(now)));
+    return peers;
   }
 
   void _emitStatus(String s) => _statusCtrl.add(s);

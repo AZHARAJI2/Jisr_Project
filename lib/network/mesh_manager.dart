@@ -7,6 +7,22 @@ import 'nearby_mesh_service.dart';
 import 'security_service.dart';
 import 'notification_service.dart';
 
+class TransferTracePoint {
+  final String txnId;
+  final String nodeId;
+  final String state;
+  final int timestamp;
+  final List<String> path;
+
+  const TransferTracePoint({
+    required this.txnId,
+    required this.nodeId,
+    required this.state,
+    required this.timestamp,
+    required this.path,
+  });
+}
+
 /// ════════════════════════════════════════════════
 /// MeshManager — المدير الرئيسي (Singleton)
 ///
@@ -41,6 +57,9 @@ class MeshManager {
   /// Stream للحوالات الواردة (للواجهة)
   final _incomingController = StreamController<TransactionPacket>.broadcast();
   Stream<TransactionPacket> get incomingTransfers => _incomingController.stream;
+  final _traceController = StreamController<TransferTracePoint>.broadcast();
+  Stream<TransferTracePoint> get traceStream => _traceController.stream;
+  final Map<String, List<TransferTracePoint>> _traceByTxn = {};
 
   /// Stream لحالة الشبكة
   Stream<String> get statusStream => _nearby.statusStream;
@@ -56,6 +75,7 @@ class MeshManager {
 
   /// أسماء الأجهزة المتصلة
   List<String> get connectedDevices => _nearby.connectedDevices;
+  List<PeerTelemetry> get peerTelemetry => _nearby.getPeerTelemetry();
 
   /// سجل الأحداث الحي (للواجهة)
   List<String> get logs => _nearby.logs;
@@ -81,6 +101,7 @@ class MeshManager {
       userId: _myUserId,
     );
     _nearby.onPacketReceived = onPacketReceived;
+    _nearby.onTraceReceived = _onTraceReceived;
 
     debugPrint('🌐 MeshManager: تم التهيئة');
     debugPrint('🌐 MeshManager: userId=$_myUserId');
@@ -158,6 +179,11 @@ class MeshManager {
 
     // 4. أرسلها لجميع الأجهزة المتصلة
     await _nearby.broadcastTransaction(txn);
+    await _recordAndPublishTrace(
+      txnId: txn.id,
+      state: 'sent',
+      path: txn.path,
+    );
 
     debugPrint('📤 MeshManager: حوالة جديدة — $txn');
 
@@ -186,12 +212,12 @@ class MeshManager {
 
     // ── 3. أنا المستقبل؟ ──
     if (txn.receiverId == _myUserId) {
-      _handleMyTransaction(txn);
+      await _handleMyTransaction(txn);
       return;
     }
 
     // ── 4. أنا وسيط ──
-    _handleRelayTransaction(txn);
+    await _handleRelayTransaction(txn);
   }
 
   /// معالجة حوالة موجّهة لي
@@ -210,11 +236,16 @@ class MeshManager {
       senderId: txn.senderId,
       amount: txn.amount,
     );
+    await _recordAndPublishTrace(
+      txnId: txn.id,
+      state: 'delivered',
+      path: txn.path,
+    );
     debugPrint('🔔 MeshManager: إشعار — وصلك ${txn.amount} من ${txn.senderId}');
   }
 
   /// معالجة حوالة أنا وسيط فيها
-  void _handleRelayTransaction(TransactionPacket txn) {
+  Future<void> _handleRelayTransaction(TransactionPacket txn) async {
     // تحقق من ttl
     if (txn.ttl <= 0) {
       debugPrint('🗑️ MeshManager: حوالة ${txn.id} — ttl=0 — حذف');
@@ -232,10 +263,15 @@ class MeshManager {
     txn.path.add(_myDeviceId);
 
     // احفظها كمعلّقة — ستُرسل تلقائياً عند الاتصال بأجهزة أخرى
-    LocalDB.savePending(txn);
+    await LocalDB.savePending(txn);
 
     // أرسلها فوراً لأي أجهزة متصلة حالياً
-    _nearby.broadcastTransaction(txn);
+    await _nearby.broadcastTransaction(txn);
+    await _recordAndPublishTrace(
+      txnId: txn.id,
+      state: 'relayed',
+      path: txn.path,
+    );
 
     debugPrint('🔄 MeshManager: وسيط — حوالة ${txn.id} (ttl=${txn.ttl})');
   }
@@ -272,6 +308,51 @@ class MeshManager {
   int get completedCount => LocalDB.getAllCompleted().length;
   List<TransactionPacket> get pendingTransactions => LocalDB.getAllPending();
   List<TransactionPacket> get completedTransactions => LocalDB.getAllCompleted();
+  List<TransferTracePoint> getTrace(String txnId) =>
+      List.unmodifiable(_traceByTxn[txnId] ?? const []);
+
+  Future<void> _recordAndPublishTrace({
+    required String txnId,
+    required String state,
+    required List<String> path,
+  }) async {
+    final point = TransferTracePoint(
+      txnId: txnId,
+      nodeId: _myUserId,
+      state: state,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      path: List<String>.from(path),
+    );
+    _traceByTxn.putIfAbsent(txnId, () => []).add(point);
+    _traceController.add(point);
+    await _nearby.publishTraceEvent(
+      txnId: txnId,
+      state: state,
+      path: point.path,
+    );
+  }
+
+  Future<void> _onTraceReceived(Map<String, dynamic> trace) async {
+    final txnId = trace['txnId'] as String? ?? '';
+    if (txnId.isEmpty) return;
+    final point = TransferTracePoint(
+      txnId: txnId,
+      nodeId: trace['nodeId'] as String? ?? 'unknown',
+      state: trace['state'] as String? ?? 'unknown',
+      timestamp: (trace['ts'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
+      path: (trace['path'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
+          .toList(),
+    );
+    final bucket = _traceByTxn.putIfAbsent(txnId, () => []);
+    final duplicate = bucket.any(
+      (p) => p.nodeId == point.nodeId && p.state == point.state && p.timestamp == point.timestamp,
+    );
+    if (duplicate) return;
+    bucket.add(point);
+    bucket.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    _traceController.add(point);
+  }
 
   // ──────────────────────────────────────────
   //  التنظيف
@@ -280,6 +361,7 @@ class MeshManager {
   void dispose() {
     stop();
     _incomingController.close();
+    _traceController.close();
     debugPrint('🌐 MeshManager: تم التنظيف الكامل');
   }
 }

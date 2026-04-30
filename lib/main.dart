@@ -60,6 +60,7 @@ class _MeshBootstrapState extends State<MeshBootstrap> {
   Future<void> _initMesh() async {
     // ── الصلاحيات ──
     await Permission.location.request();
+    await Permission.locationWhenInUse.request();
     await [
       Permission.bluetooth,
       Permission.bluetoothScan,
