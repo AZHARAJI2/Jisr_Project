@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../network/network.dart';
+import '../ai/ai_routing_layer.dart';
 import 'dart:async';
 
 class NetworkScreen extends StatefulWidget {
@@ -13,28 +14,43 @@ class NetworkScreen extends StatefulWidget {
 
 class _NetworkScreenState extends State<NetworkScreen> {
   final MeshManager _mesh = MeshManager.instance;
+  final AIRoutingLayer _ai = AIRoutingLayer();
+
   int _peers = 0;
   List<String> _devices = [];
   List<String> _logs = [];
+
+  NetworkNode? _bestRelay;
+
   StreamSubscription<int>? _peersSub;
   StreamSubscription<String>? _logSub;
 
   @override
   void initState() {
     super.initState();
-    _peers = _mesh.connectedCount;
-    _devices = _mesh.connectedDevices;
-    _logs = _mesh.logs;
 
-    _peersSub = _mesh.peersStream.listen((c) {
-      if (mounted) setState(() {
-        _peers = c;
-        _devices = _mesh.connectedDevices;
-      });
+    _refreshData();
+
+    _peersSub = _mesh.peersStream.listen((_) {
+      if (mounted) {
+        setState(_refreshData);
+      }
     });
+
     _logSub = _mesh.logStream.listen((_) {
-      if (mounted) setState(() => _logs = _mesh.logs);
+      if (mounted) {
+        setState(() {
+          _logs = List.from(_mesh.logs);
+        });
+      }
     });
+  }
+
+  void _refreshData() {
+    _peers = _mesh.connectedCount;
+    _devices = List.from(_mesh.connectedDevices);
+    _logs = List.from(_mesh.logs);
+    _bestRelay = _ai.getBestRelay();
   }
 
   @override
@@ -48,12 +64,11 @@ class _NetworkScreenState extends State<NetworkScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text('خريطة الشبكة الذكية'),
+        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('خريطة الشبكة'),
-        centerTitle: true,
         actions: [
-          // زر إعادة تشغيل الشبكة
           IconButton(
             icon: const Icon(Icons.restart_alt),
             onPressed: () async {
@@ -75,88 +90,60 @@ class _NetworkScreenState extends State<NetworkScreen> {
                   padding: const EdgeInsets.all(25),
                   child: Column(
                     children: [
-                      Text(
-                        'خريطة الشبكة الحية',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryEmerald),
-                      ),
-                      const SizedBox(height: 30),
-                      
-                      _buildNodeGraph(),
-                      
-                      const SizedBox(height: 30),
-                      _buildStatusLegend(),
-                      
-                      const Divider(color: Colors.white10, height: 40),
-                      
-                      _buildNetworkStats(),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // الأجهزة المتصلة
-              if (_devices.isNotEmpty)
-                GlassCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('الأجهزة المتصلة:', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryEmerald)),
-                        const SizedBox(height: 10),
-                        ..._devices.map((d) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(children: [
-                            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-                            const SizedBox(width: 10),
-                            const Icon(Icons.phone_android, size: 16, color: Colors.green),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(d, style: const TextStyle(fontSize: 13))),
-                          ]),
-                        )),
-                      ],
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 20),
-
-              // سجل الأحداث
-              GlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('📋 سجل الأحداث', style: TextStyle(color: AppTheme.primaryEmerald, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 10),
-                      Container(
-                        height: 200,
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(8),
+                      const Text(
+                        'خريطة الشبكة المدعومة بالذكاء الاصطناعي',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryEmerald,
                         ),
-                        child: _logs.isEmpty
-                            ? const Text('لا أحداث بعد...', style: TextStyle(color: Colors.grey, fontSize: 12))
-                            : ListView.builder(
-                                reverse: true,
-                                itemCount: _logs.length,
-                                itemBuilder: (_, i) {
-                                  final log = _logs[_logs.length - 1 - i];
-                                  Color color = Colors.white70;
-                                  if (log.contains('✅')) color = Colors.greenAccent;
-                                  if (log.contains('❌')) color = Colors.redAccent;
-                                  if (log.contains('🔍')) color = Colors.cyanAccent;
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 1),
-                                    child: Text(log, style: TextStyle(color: color, fontSize: 10, fontFamily: 'monospace')),
-                                  );
-                                },
-                              ),
                       ),
+                      const SizedBox(height: 25),
+
+                      if (_bestRelay != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.amber.withOpacity(0.5),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: Colors.amber,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'أفضل وسيط: ${_bestRelay!.name}',
+                                  style: const TextStyle(
+                                    color: Colors.amber,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 25),
+                      ],
+
+                      _buildNodeGraph(),
+
+                      const SizedBox(height: 25),
+
+                      _buildStatusLegend(),
+
+                      const Divider(
+                        color: Colors.white10,
+                        height: 40,
+                      ),
+
+                      _buildNetworkStats(),
                     ],
                   ),
                 ),
@@ -170,51 +157,103 @@ class _NetworkScreenState extends State<NetworkScreen> {
 
   Widget _buildNodeGraph() {
     return SizedBox(
-      height: 350,
+      height: 380,
       width: double.infinity,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          CustomPaint(size: Size.infinite, painter: GraphPainter()),
-          _buildNode(0, -130, 'أنت', AppTheme.primaryEmerald, isSelf: true),
-          ..._devices.asMap().entries.map((e) {
-            final angle = (e.key * 2.0 * 3.14159) / _devices.length;
-            final x = 80.0 * (e.key % 2 == 0 ? -1 : 1);
-            final y = -40.0 + (e.key * 50.0);
-            return _buildNode(x, y, e.value.replaceAll('JISR_', ''), Colors.green, isActive: true);
+          CustomPaint(
+            size: Size.infinite,
+            painter: IntelligentGraphPainter(
+              deviceCount: _devices.length,
+            ),
+          ),
+
+          _buildNode(
+            0,
+            0,
+            'أنت',
+            AppTheme.primaryEmerald,
+            isSelf: true,
+          ),
+
+          ..._devices.asMap().entries.map((entry) {
+            final index = entry.key;
+            final device = entry.value.replaceAll('JISR_', '');
+
+            final positions = [
+              const Offset(-140, -100),
+              const Offset(140, -100),
+              const Offset(-150, 90),
+              const Offset(150, 90),
+              const Offset(0, -170),
+              const Offset(0, 170),
+            ];
+
+            final pos = positions[index % positions.length];
+            final isBest = _bestRelay?.name == device;
+
+            return _buildNode(
+              pos.dx,
+              pos.dy,
+              device,
+              isBest ? Colors.amber : Colors.green,
+              isActive: true,
+              isBestRelay: isBest,
+            );
           }),
-          if (_devices.isEmpty)
-            _buildNode(0, 0, 'يبحث عن أجهزة...', Colors.orange),
         ],
       ),
     );
   }
 
-  Widget _buildNode(double x, double y, String name, Color color, {bool isActive = false, bool isSelf = false}) {
+  Widget _buildNode(
+    double x,
+    double y,
+    String name,
+    Color color, {
+    bool isActive = false,
+    bool isSelf = false,
+    bool isBestRelay = false,
+  }) {
     return Transform.translate(
       offset: Offset(x, y),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
               shape: BoxShape.circle,
-              border: Border.all(color: color, width: 2),
-              boxShadow: isActive || isSelf ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 10)] : null,
+              color: color.withOpacity(0.12),
+              border: Border.all(color: color, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.45),
+                  blurRadius: isBestRelay ? 25 : 12,
+                  spreadRadius: isBestRelay ? 4 : 1,
+                ),
+              ],
             ),
             child: Icon(
-              isSelf ? Icons.my_location : (isActive ? Icons.phone_android : Icons.wifi_find),
+              isSelf
+                  ? Icons.my_location
+                  : isBestRelay
+                      ? Icons.star
+                      : Icons.phone_android,
               color: color,
-              size: 20,
+              size: 26,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             name,
-            style: TextStyle(fontSize: 10, color: color, fontWeight: isSelf ? FontWeight.bold : FontWeight.normal),
-            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight:
+                  isSelf || isBestRelay ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ],
       ),
@@ -225,21 +264,34 @@ class _NetworkScreenState extends State<NetworkScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildLegendItem('متصل', Colors.green),
+        _legend('أنت', AppTheme.primaryEmerald),
         const SizedBox(width: 20),
-        _buildLegendItem('أنت', AppTheme.primaryEmerald),
+        _legend('جهاز متصل', Colors.green),
         const SizedBox(width: 20),
-        _buildLegendItem('يبحث', Colors.orange),
+        _legend('أفضل وسيط', Colors.amber),
       ],
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
+  Widget _legend(String text, Color color) {
     return Row(
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.white70)),
+        Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 11,
+          ),
+        ),
       ],
     );
   }
@@ -247,52 +299,85 @@ class _NetworkScreenState extends State<NetworkScreen> {
   Widget _buildNetworkStats() {
     return Column(
       children: [
-        _buildStatItem('أجهزة متصلة:', '$_peers', color: AppTheme.primaryEmerald),
-        const SizedBox(height: 10),
-        _buildStatItem('حوالات معلّقة:', '${_mesh.pendingTransactions.length}'),
-        const SizedBox(height: 10),
-        _buildStatItem('حوالات مكتملة:', '${_mesh.completedTransactions.length}'),
+        _stat('الأجهزة المتصلة', '$_peers',
+            color: AppTheme.primaryEmerald),
+        const SizedBox(height: 12),
+        _stat(
+          'الحوالات المعلقة',
+          '${_mesh.pendingTransactions.length}',
+        ),
+        const SizedBox(height: 12),
+        _stat(
+          'الحوالات المكتملة',
+          '${_mesh.completedTransactions.length}',
+        ),
       ],
     );
   }
 
-  Widget _buildStatItem(String label, String value, {Color? color}) {
+  Widget _stat(String label, String value, {Color? color}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-        Text(value, style: TextStyle(color: color ?? Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: color ?? Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
 }
 
-class GraphPainter extends CustomPainter {
+class IntelligentGraphPainter extends CustomPainter {
+  final int deviceCount;
+
+  IntelligentGraphPainter({
+    required this.deviceCount,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
+    if (deviceCount == 0) return;
 
     final center = Offset(size.width / 2, size.height / 2);
-    
-    // خطوط الشبكة
-    canvas.drawLine(center + const Offset(0, -110), center + const Offset(0, -60), paint);
-    canvas.drawLine(center + const Offset(0, -20), center + const Offset(-60, 30), paint);
-    canvas.drawLine(center + const Offset(0, -20), center + const Offset(60, 30), paint);
-    canvas.drawLine(center + const Offset(-60, 60), center + const Offset(0, 100), paint);
-    canvas.drawLine(center + const Offset(60, 60), center + const Offset(0, 100), paint);
 
-    final bestPath = Paint()
-      ..color = AppTheme.primaryEmerald.withOpacity(0.5)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-      
-    canvas.drawLine(center + const Offset(-60, 60), center + const Offset(0, 100), bestPath);
-    canvas.drawLine(center + const Offset(0, -20), center + const Offset(-60, 30), bestPath);
+    final linePaint = Paint()
+      ..color = AppTheme.primaryEmerald.withOpacity(0.25)
+      ..strokeWidth = 2;
+
+    final aiPaint = Paint()
+      ..color = Colors.amber.withOpacity(0.75)
+      ..strokeWidth = 3.5;
+
+    final positions = [
+      const Offset(-140, -100),
+      const Offset(140, -100),
+      const Offset(-150, 90),
+      const Offset(150, 90),
+      const Offset(0, -170),
+      const Offset(0, 170),
+    ];
+
+    for (int i = 0; i < deviceCount; i++) {
+      final point = center + positions[i % positions.length];
+      canvas.drawLine(center, point, linePaint);
+
+      if (i == 0) {
+        canvas.drawLine(center, point, aiPaint);
+      }
+    }
   }
-
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant IntelligentGraphPainter oldDelegate) {
+    return oldDelegate.deviceCount != deviceCount;
+  }
 }
