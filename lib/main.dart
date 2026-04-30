@@ -84,11 +84,15 @@ class _MeshBootstrapState extends State<MeshBootstrap> {
     await mesh.start();
 
     // ── خدمة الخلفية ──
-    try {
-      await JisrForegroundService.start();
-    } catch (e) {
-      debugPrint('⚠️ Foreground service: $e');
-    }
+    // موقوفة مؤقتا: تشغيل ForegroundTask ينشئ Flutter engine إضافي،
+    // ومع القنوات static داخل البلجن قد تذهب أحداث jisr_events للمحرك الخلفي
+    // بدل واجهة التطبيق، فيظهر عدد الأجهزة = 0 رغم نجاح الاتصال.
+    // أعد التفعيل لاحقا بعد جعل قنوات البلجن non-static/multi-engine safe.
+    // try {
+    //   await JisrForegroundService.start();
+    // } catch (e) {
+    //   debugPrint('⚠️ Foreground service: $e');
+    // }
   }
 
   @override

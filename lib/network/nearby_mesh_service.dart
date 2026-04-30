@@ -43,7 +43,7 @@ class NearbyMeshService {
   // ──────────────────────────────────────────
 
   void _setupHandler() {
-    _events.setMethodCallHandler((MethodCall call) async {
+    Future<dynamic> handler(MethodCall call) async {
       final args = call.arguments as Map<dynamic, dynamic>;
       _log('📨 JISR: ${call.method}');
 
@@ -51,7 +51,6 @@ class NearbyMeshService {
           case 'dis.onEndpointFound':
             final id = args['endpointId'] as String? ?? '';
             final name = args['endpointName'] as String? ?? '';
-            final svc = args['serviceId'] as String? ?? '';
             _log('🔍✅ وُجد: $name ($id)');
             _handleEndpointFound(id, name);
             break;
@@ -112,7 +111,12 @@ class NearbyMeshService {
             }
             break;
         }
-    });
+    }
+
+    // استقبل الأحداث من القناتين لضمان التوافق.
+    // بعض البيئات قد تمرر callbacks على القناة الأصلية nearby_connections.
+    _events.setMethodCallHandler(handler);
+    _ch.setMethodCallHandler(handler);
     _log('🔧 JISR handler مُسجّل ✅');
   }
 
@@ -218,8 +222,10 @@ class NearbyMeshService {
       _log('⏭️ $name — موجود');
       return;
     }
+    // طلب الاتصال يتم تلقائيا من Native plugin داخل onEndpointFound.
+    // لا نكرر requestConnection من Flutter حتى لا يحدث collision/8003.
     _pendingRequests.add(id);
-    _requestConnection(id, name);
+    _log('🤖 AUTO native connect -> $name ($id)');
   }
 
   Future<void> _requestConnection(String id, String name) async {

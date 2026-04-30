@@ -478,12 +478,23 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
                                     @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
             Log.d("nearby_connections", "onEndpointFound -> " + endpointId + " " + discoveredEndpointInfo.getEndpointName());
             
-            // ✅ اتصال تلقائي فوري!
-            Log.d("nearby_connections", "AUTO requestConnection -> " + endpointId);
-            Nearby.getConnectionsClient(activity)
-                .requestConnection(savedUserNickName, endpointId, discoverConnectionLifecycleCallback)
-                .addOnSuccessListener(aVoid -> Log.d("nearby_connections", "requestConnection SUCCESS -> " + endpointId))
-                .addOnFailureListener(e -> Log.w("nearby_connections", "requestConnection FAIL -> " + e.getMessage()));
+            // ✅ اتصال تلقائي مع تقليل احتمالية خطأ 8012 (collision/radio-busy)
+            Log.d("nearby_connections", "Preparing AUTO requestConnection -> " + endpointId);
+
+            // خفف ضغط الراديو قبل طلب الاتصال.
+            Nearby.getConnectionsClient(activity).stopDiscovery();
+
+            // انتظر قليلا حتى يستقر الطرفان قبل requestConnection.
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                Log.d("nearby_connections", "Executing requestConnection -> " + endpointId);
+                Nearby.getConnectionsClient(activity)
+                    .requestConnection(savedUserNickName, endpointId, discoverConnectionLifecycleCallback)
+                    .addOnSuccessListener(aVoid -> Log.d("nearby_connections", "requestConnection SUCCESS -> " + endpointId))
+                    .addOnFailureListener(e -> {
+                        Log.w("nearby_connections", "requestConnection FAIL -> " + e.getMessage());
+                        // optional: restart discovery from Flutter side if needed.
+                    });
+            }, 500);
 
             final Map<String, Object> args = new HashMap<>();
             args.put("endpointId", endpointId);
