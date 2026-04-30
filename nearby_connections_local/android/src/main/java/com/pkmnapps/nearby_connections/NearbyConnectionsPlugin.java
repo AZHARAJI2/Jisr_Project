@@ -478,8 +478,25 @@ public class NearbyConnectionsPlugin implements MethodCallHandler, FlutterPlugin
                                     @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
             Log.d("nearby_connections", "onEndpointFound -> " + endpointId + " " + discoveredEndpointInfo.getEndpointName());
             
-            // ✅ اتصال تلقائي مع تقليل احتمالية خطأ 8012 (collision/radio-busy)
-            Log.d("nearby_connections", "Preparing AUTO requestConnection -> " + endpointId);
+            // ✅ منع collision: اجعل طرف واحد فقط يبدأ requestConnection
+            // قاعدة ثابتة: الطرف ذو الاسم (endpointName) "الأصغر" يبدأ الاتصال
+            // وبكذا حتى لو كلا الهاتفين اكتشف الآخر، لن يرسلوا requestConnection سوا.
+            final String remoteName = discoveredEndpointInfo.getEndpointName();
+            final boolean shouldInitiate = savedUserNickName != null
+                && remoteName != null
+                && savedUserNickName.compareTo(remoteName) < 0;
+
+            if (!shouldInitiate) {
+                Log.d("nearby_connections", "Skip AUTO requestConnection (peer will initiate) -> " + endpointId);
+                final Map<String, Object> args = new HashMap<>();
+                args.put("endpointId", endpointId);
+                args.put("endpointName", discoveredEndpointInfo.getEndpointName());
+                args.put("serviceId", discoveredEndpointInfo.getServiceId());
+                sendEvent("dis.onEndpointFound", args);
+                return;
+            }
+
+            Log.d("nearby_connections", "Preparing AUTO requestConnection (initiator) -> " + endpointId);
 
             // خفف ضغط الراديو قبل طلب الاتصال.
             Nearby.getConnectionsClient(activity).stopDiscovery();
